@@ -1,97 +1,60 @@
 package com.taiwan_brown_bear.find_ans_from_resource_doc.service;
 
 import ai.djl.inference.Predictor;
-import ai.djl.modality.nlp.DefaultVocabulary;
-import ai.djl.modality.nlp.bert.BertToken;
-import ai.djl.modality.nlp.bert.BertTokenizer;
 import ai.djl.modality.nlp.qa.QAInput;
 import ai.djl.repository.zoo.Criteria;
 import ai.djl.repository.zoo.ZooModel;
-import ai.djl.training.util.DownloadUtils;
 import ai.djl.training.util.ProgressBar;
-import com.taiwan_brown_bear.find_ans_from_resource_doc.translator.BertTranslator;
+import com.taiwan_brown_bear.find_ans_from_resource_doc.configuration.FindAnsFromResourceDocConfiguration;
+import com.taiwan_brown_bear.find_ans_from_resource_doc.service.init.FindAnsFromResourceDocInitialization;
+import com.taiwan_brown_bear.find_ans_from_resource_doc.translator.FindAnsFromResourceDocBertTranslator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.List;
 
 @Slf4j
 @Service
 public class FindAnsFromResourceDocService {
 
-    public String findAnswer(String providedResourceDoc, String question){
-        qanda();// new
-        return "answer is ...";
+    private FindAnsFromResourceDocConfiguration conf;
+
+    public FindAnsFromResourceDocService(FindAnsFromResourceDocConfiguration conf) throws IOException {
+        this.conf = conf;
+        log.info("Initializing / Downloading ...");
+        FindAnsFromResourceDocInitialization init = new FindAnsFromResourceDocInitialization(conf);
     }
 
+    public String findAnswer(String providedResourceDoc, String question)
+    {
+        try
+        {
+            // Note: use criteria to get model and,
+            //       then, use model to get predictor.
+            //       both criteria and predictor need translator.
+            //
+            FindAnsFromResourceDocBertTranslator translator = new FindAnsFromResourceDocBertTranslator();
 
-    public static void qanda(){
-        System.out.println("hello world 123");
-
-        var question = "When did BBC Japan start broadcasting?";
-        var resourceDocument = "BBC Japan was a general entertainment Channel.\n" +
-                "Which operated between December 2004 and April 2006.\n" +
-                "It ceased operations after its Japanese distributor folded.";
-
-        QAInput input = new QAInput(question, resourceDocument);
-
-        var tokenizer = new BertTokenizer();
-        List<String> tokenQ = tokenizer.tokenize(question.toLowerCase());
-        List<String> tokenA = tokenizer.tokenize(resourceDocument.toLowerCase());
-
-        System.out.println("Question Token: " + tokenQ);
-        System.out.println("Answer Token: " + tokenA);
-
-        BertToken token = tokenizer.encode(question.toLowerCase(), resourceDocument.toLowerCase());
-        System.out.println("Encoded tokens: " + token.getTokens());
-        System.out.println("Encoded token type: " + token.getTokenTypes());
-        System.out.println("Valid length: " + token.getValidLength());
-
-        try {
-            DownloadUtils.download(
-                    "https://djl-ai.s3.amazonaws.com/mlrepo/model/nlp/question_answer/ai/djl/pytorch/bertqa/0.0.1/bert-base-uncased-vocab.txt.gz",
-                    "build/pytorch/bertqa/vocab.txt", new ProgressBar());
-
-            var path = Paths.get("build/pytorch/bertqa/vocab.txt");
-            var vocabulary = DefaultVocabulary.builder()
-                    .optMinFrequency(1)
-                    .addFromTextFile(path)
-                    .optUnknownToken("[UNK]")
-                    .build();
-
-            long index = vocabulary.getIndex("car");
-            String token123 = vocabulary.getToken(2482);
-            System.out.println("The index of the car is " + index);
-            System.out.println("The token of the index 2482 is " + token123);
-
-
-
-            DownloadUtils.download("https://djl-ai.s3.amazonaws.com/mlrepo/model/nlp/question_answer/ai/djl/pytorch/bertqa/0.0.1/trace_bertqa.pt.gz", "build/pytorch/bertqa/bertqa.pt", new ProgressBar());
-            BertTranslator translator = new BertTranslator();
-
-            Criteria<QAInput, String> criteria = Criteria.builder()
+            Criteria<QAInput, String> modelConfigAndSearchCriteria = Criteria.builder()
                     .setTypes(QAInput.class, String.class)
-                    .optModelPath(Paths.get("build/pytorch/bertqa/")) // search in local folder
+                    .optModelPath(Paths.get(conf.getLOCAL_VOCABULARY_PYTORCH_MODEL_DIRECTORY_URL()))// search this local folder
                     .optTranslator(translator)
                     .optProgress(new ProgressBar()).build();
 
-            ZooModel model = criteria.loadModel();
+            ZooModel deserializedPytorchModel = modelConfigAndSearchCriteria.loadModel();
 
-            String predictResult = null;
-            QAInput input123 = new QAInput(question, resourceDocument);
-
-// Create a Predictor and use it to predict the output
-            try (Predictor<QAInput, String> predictor = model.newPredictor(translator)) {
-                predictResult = predictor.predict(input123);
+            try (Predictor<QAInput, String> predictor = deserializedPytorchModel.newPredictor(translator)) {
+                QAInput input = new QAInput(question, providedResourceDoc);
+                String answer = predictor.predict(input);
+                log.info("QAInput has Question as \"{}\" & Resource Document as \"{}\"", input.getQuestion(), input.getParagraph() );
+                log.info("Answer  is \"{}\"", answer);
+                return answer;
             }
 
-            System.out.println(question);
-            System.out.println(predictResult);
-
-        } catch (Exception ioe) {
-            System.out.println("ERROR ...");
+        } catch (Exception e) {
+            log.error("Failed to answer due to {}", e.getMessage(), e);
         }
-
+        return null;
     }
 }
