@@ -7,7 +7,7 @@ import ai.djl.repository.zoo.ZooModel;
 import ai.djl.training.util.ProgressBar;
 import com.taiwan_brown_bear.find_ans_from_resource_doc.configuration.FindAnsFromResourceDocConfiguration;
 import com.taiwan_brown_bear.find_ans_from_resource_doc.service.init.FindAnsFromResourceDocInitialization;
-import com.taiwan_brown_bear.find_ans_from_resource_doc.translator.FindAnsFromResourceDocBertTranslator;
+import com.taiwan_brown_bear.find_ans_from_resource_doc.service.translator.FindAnsFromResourceDocBertTranslator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -18,12 +18,15 @@ import java.nio.file.Paths;
 @Service
 public class FindAnsFromResourceDocService {
 
-    private FindAnsFromResourceDocConfiguration conf;
+    private FindAnsFromResourceDocConfiguration  conf;
+    private FindAnsFromResourceDocInitialization init;
+    private FindAnsFromResourceDocBertTranslator translator;
 
     public FindAnsFromResourceDocService(FindAnsFromResourceDocConfiguration conf) throws IOException {
         this.conf = conf;
         log.info("Initializing / Downloading ...");
-        FindAnsFromResourceDocInitialization init = new FindAnsFromResourceDocInitialization(conf);
+        this.init = new FindAnsFromResourceDocInitialization(conf);
+        this.translator = new FindAnsFromResourceDocBertTranslator(conf);
     }
 
     public String findAnswer(String providedResourceDoc, String question)
@@ -34,7 +37,7 @@ public class FindAnsFromResourceDocService {
             //       then, use model to get predictor.
             //       both criteria and predictor need translator.
             //
-            FindAnsFromResourceDocBertTranslator translator = new FindAnsFromResourceDocBertTranslator();
+            //FindAnsFromResourceDocBertTranslator translator = new FindAnsFromResourceDocBertTranslator();
 
             Criteria<QAInput, String> modelConfigAndSearchCriteria = Criteria.builder()
                     .setTypes(QAInput.class, String.class)
