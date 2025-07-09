@@ -1,4 +1,4 @@
-package com.taiwan_brown_bear.find_ans_from_resource_doc;
+package com.taiwan_brown_bear.find_ans_from_resource_doc.translator;
 
 import ai.djl.modality.nlp.DefaultVocabulary;
 import ai.djl.modality.nlp.Vocabulary;
