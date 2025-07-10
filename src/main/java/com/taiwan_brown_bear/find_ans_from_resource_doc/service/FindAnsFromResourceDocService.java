@@ -45,7 +45,9 @@ public class FindAnsFromResourceDocService {
                     .optTranslator(translator)
                     .optProgress(new ProgressBar()).build();
 
+            log.info("start downloading the model ...");
             ZooModel deserializedPytorchModel = modelConfigAndSearchCriteria.loadModel();
+            log.info("finished downloading the model ...");
 
             try (Predictor<QAInput, String> predictor = deserializedPytorchModel.newPredictor(translator)) {
                 QAInput input = new QAInput(question, providedResourceDoc);
